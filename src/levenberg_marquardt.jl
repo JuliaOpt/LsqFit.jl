@@ -36,13 +36,13 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
     lambda = T(10), tau=T(Inf), lambda_increase::Real = 10.0, lambda_decrease::Real = 0.1,
     min_step_quality::Real = 1e-3, good_step_quality::Real = 0.75,
     show_trace::Bool = false, lower::Vector{T} = Array{T}(undef, 0), upper::Vector{T} = Array{T}(undef, 0), avv!::Union{Function,Nothing,Avv} = nothing
-    ) where T
+    ) where T<:Real
 
     # First evaluation
     value_jacobian!!(df, initial_x)
     
     if isfinite(tau)
-        lambda = tau*maximum(jacobian(df)'*jacobian(df))
+        lambda = tau*maximum(abs.(jacobian(df)'*jacobian(df)))
     end
 
 
@@ -107,26 +107,36 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
         # It is additionally useful to bound the elements of DtD below to help
         # prevent "parameter evaporation".
 
-        DtD = vec(sum(abs2, J, dims=1))
-        for i in 1:length(DtD)
-            if DtD[i] <= MIN_DIAGONAL
-                DtD[i] = MIN_DIAGONAL
-            end
+        # DtD = vec(sum(abs2, J, dims=1))
+        # for i in 1:length(DtD)
+        #     if DtD[i] <= MIN_DIAGONAL
+        #         DtD[i] = MIN_DIAGONAL
+        #     end
+        # end
+
+        # # delta_x = ( J'*J + lambda * Diagonal(DtD) ) \ ( -J'*value(df) )
+        # mul!(JJ, J', J)
+        # @simd for i in 1:n
+        #     @inbounds JJ[i, i] += lambda * DtD[i]
+        # end
+        # #n_buffer is delta C, JJ is g compared to Mark's code
+        # mul!(n_buffer, J', value(df))
+        # rmul!(n_buffer, -1)
+
+        # v .= JJ \ n_buffer
+        Q,R,p = qr(J, Val(true))
+        rhs = -Matrix(Q)'*value(df)
+        if isreal(R)
+            RR = vcat(R, lambda*I)
+            rhs = vcat(rhs, zeros(T, n))
+        else
+            RR = vcat(real.(R), imag.(R), lambda*I) # nonlinear parameters are real
+            rhs = vcat(real.(rhs), imag.(rhs), zeros(T, n))
         end
+        v[p] = (RR\rhs)
 
-        # delta_x = ( J'*J + lambda * Diagonal(DtD) ) \ ( -J'*value(df) )
-        mul!(JJ, transpose(J), J)
-        @simd for i in 1:n
-            @inbounds JJ[i, i] += lambda * DtD[i]
-        end
-        #n_buffer is delta C, JJ is g compared to Mark's code
-        mul!(n_buffer, transpose(J), value(df))
-        rmul!(n_buffer, -1)
-
-        v .= JJ \ n_buffer
-
-
-        if avv! != nothing
+        if avv! != nothing && isreal(J)  # Geodesic acceleration for complex Jacobian
+                                         # is not implemented yet
             #GEODESIC ACCELERATION PART
             avv!(dir_deriv, x, v)
             mul!(a, transpose(J), dir_deriv)
