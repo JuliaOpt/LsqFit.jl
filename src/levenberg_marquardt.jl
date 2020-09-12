@@ -40,7 +40,7 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
 
     # First evaluation
     value_jacobian!!(df, initial_x)
-    
+
     if isfinite(tau)
         lambda = tau*maximum(abs.(jacobian(df)'*jacobian(df)))
     end
@@ -98,32 +98,8 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
         # jacobian! will check if x is new or not, so it is only actually
         # evaluated if x was updated last iteration.
         jacobian!(df, x) # has alias J
-
-        # we want to solve:
+        # Use QR with column pivoting to solve the regularized least squares problem
         #    argmin 0.5*||J(x)*delta_x + f(x)||^2 + lambda*||diagm(J'*J)*delta_x||^2
-        # Solving for the minimum gives:
-        #    (J'*J + lambda*diagm(DtD)) * delta_x == -J' * f(x), where DtD = sum(abs2, J,1)
-        # Where we have used the equivalence: diagm(J'*J) = diagm(sum(abs2, J,1))
-        # It is additionally useful to bound the elements of DtD below to help
-        # prevent "parameter evaporation".
-
-        # DtD = vec(sum(abs2, J, dims=1))
-        # for i in 1:length(DtD)
-        #     if DtD[i] <= MIN_DIAGONAL
-        #         DtD[i] = MIN_DIAGONAL
-        #     end
-        # end
-
-        # # delta_x = ( J'*J + lambda * Diagonal(DtD) ) \ ( -J'*value(df) )
-        # mul!(JJ, J', J)
-        # @simd for i in 1:n
-        #     @inbounds JJ[i, i] += lambda * DtD[i]
-        # end
-        # #n_buffer is delta C, JJ is g compared to Mark's code
-        # mul!(n_buffer, J', value(df))
-        # rmul!(n_buffer, -1)
-
-        # v .= JJ \ n_buffer
         Q,R,p = qr(J, Val(true))
         rhs = -Matrix(Q)'*value(df)
         if isreal(R)
@@ -136,23 +112,17 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
         v[p] = (RR\rhs)
 
         if avv! != nothing && isreal(J)  # Geodesic acceleration for complex Jacobian
-                                         # is not implemented yet
             #GEODESIC ACCELERATION PART
             avv!(dir_deriv, x, v)
-            mul!(a, transpose(J), dir_deriv)
-            rmul!(a, -1) #we multiply by -1 before the decomposition/division
-            LAPACK.potrf!('U', JJ) #in place cholesky decomposition
-            LAPACK.potrs!('U', JJ, a) #divides a by JJ, taking into account the fact that JJ is now the `U` cholesky decoposition of what it was before
+            mul!(a, J', dir_deriv)
+            rmul!(a, -1)
+            LAPACK.potrs!('U', R, a)
             rmul!(a, 0.5)
             delta_x .= v .+ a
             #end of the GEODESIC ACCELERATION PART
         else
             delta_x = v
         end
-
-
-
-
 
         # apply box constraints
         if !isempty(lower)
