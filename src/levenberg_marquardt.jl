@@ -116,7 +116,8 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
             avv!(dir_deriv, x, v)
             mul!(a, J', dir_deriv)
             rmul!(a, -1)
-            LAPACK.potrs!('U', R, a)
+            a = (R\(R'\a[p]))
+            a[p] = a
             rmul!(a, 0.5)
             delta_x .= v .+ a
             #end of the GEODESIC ACCELERATION PART
