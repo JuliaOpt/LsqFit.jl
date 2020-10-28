@@ -42,7 +42,7 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
     value_jacobian!!(df, initial_x)
 
     if isfinite(tau)
-        lambda = tau*maximum(abs.(jacobian(df)'*jacobian(df)))
+        lambda = tau*maximum(real, jacobian(df)'*jacobian(df))
     end
 
 
@@ -102,7 +102,7 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
         #    argmin 0.5*||J(x)*delta_x + f(x)||^2 + lambda*||diagm(J'*J)*delta_x||^2
         Q,R,p = qr(J, Val(true))
         rhs = -Matrix(Q)'*value(df)
-        if isreal(R)
+        if eltype(J) <: Real
             RR = vcat(R, lambda*I)
             rhs = vcat(rhs, zeros(T, n))
         else
@@ -111,7 +111,7 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
         end
         v[p] = (RR\rhs)
 
-        if avv! != nothing && isreal(J)  # Geodesic acceleration for complex Jacobian
+        if avv! != nothing && isreal(J)  # Geodesic acceleration for complex Jacobian needs to be verified for correctness. It might work as is.
             #GEODESIC ACCELERATION PART
             avv!(dir_deriv, x, v)
             mul!(a, J', dir_deriv)
