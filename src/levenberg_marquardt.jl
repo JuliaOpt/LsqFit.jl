@@ -175,7 +175,7 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
 
         # step quality = residual change / predicted residual change
         rho = (trial_residual - residual) / (predicted_residual - residual)
-        if rho > min_step_quality
+        if trial_residual < residual && rho > min_step_quality
             # apply the step to x - n_buffer is ready to be used by the delta_x
             # calculations after this step.
             x .= n_buffer
