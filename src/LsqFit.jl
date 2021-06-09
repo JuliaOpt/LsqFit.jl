@@ -5,6 +5,7 @@ module LsqFit
            margin_error,
            confidence_interval,
            estimate_covar,
+           r2, r²,
            make_hessian,
            Avv,
            # StatsBase reexports
@@ -17,7 +18,7 @@ module LsqFit
     using ForwardDiff
     import NLSolversBase: value, jacobian
     import StatsBase
-    import StatsBase: coef, dof, nobs, rss, stderror, weights, residuals
+    import StatsBase: coef, dof, nobs, rss, stderror, weights, residuals, r2
 
     import Base.summary
 

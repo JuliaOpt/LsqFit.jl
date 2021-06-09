@@ -222,6 +222,12 @@ julia> confidence_intervals = confidence_interval(fit, 0.1)
  (1.91047, 2.09096)
 ```
 
+`r2()` or `r²()` computes the coefficient of determination. There are multiple definitions, but the one implemented is described as "The most general definition of the coefficient of determination" in [this wikipedia article](https://en.wikipedia.org/wiki/Coefficient_of_determination#Definitions).
+```julia
+julia> r2(fit, ydata)
+0.9985914750863337
+```
+
 ## Weighted Least Squares
 
 `curve_fit()` also accepts weight parameter (`wt`) to perform Weighted Least Squares and General Least Squares, where the parameter $\boldsymbol{\gamma}^*$ minimizes the weighted residual sum of squares.

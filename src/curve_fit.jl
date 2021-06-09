@@ -251,5 +251,53 @@ function confidence_interval(fit::LsqFitResult, alpha=0.05; rtol::Real=NaN, atol
     confidence_intervals = collect(zip(coef(fit) - margin_of_errors, coef(fit) + margin_of_errors))
 end
 
+"""
+   tss(data)
+    
+Compute the total sum of squares of the input `data`.
+The output is proportional to the variance of the data.
+"""
+function tss(data)
+    ȳ = sum(data)/length(data)
+    SS_tot = sum(y->(y-ȳ)^2, data)
+end
+
+"""
+    r2(fit::LsqFitResult, ydata)
+    r²(fit::LsqFitResult, ydata)
+
+Calculate the "most general definition of the coefficient of determination"
+as prescribed in "https://en.wikipedia.org/wiki/Coefficient_of_determination#Definitions".
+
+# Examples
+```julia-repl
+julia> using LsqFit
+
+julia> xs = LinRange(0, 1, 500)
+500-element LinRange{Float64}:
+
+julia> freq = 5
+5
+
+julia> ys =  [cos(2π*freq*x) + 1*rand() + 2 for x in xs]
+500-element Vector{Float64}:
+
+julia> model(x, p) = @. cos(2π*p[1]*x)+p[2]
+model (generic function with 1 method)
+
+julia> p0 = [5, 0.5]
+2-element Vector{Float64}:
+
+julia> myfit = curve_fit(model, xs, ys, p0)
+LsqFit.LsqFitResult{Vector{Float64}, Vector{Float64}, Matrix{Float64}, Vector{Float64}}...
+
+julia> r2(myfit, ys)
+0.8553690031840835
+"""
+function StatsBase.r2(lfr::LsqFitResult, ydata::AbstractArray)
+    return 1-rss(lfr)/tss(ydata)
+end
+
+const r² = r2
 @deprecate standard_errors(args...; kwargs...) stderror(args...; kwargs...)
 @deprecate estimate_errors(fit::LsqFitResult, confidence=0.95; rtol::Real=NaN, atol::Real=0) margin_error(fit, 1-confidence; rtol=rtol, atol=atol)
