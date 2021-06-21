@@ -41,7 +41,7 @@ fit = curve_fit(model, xdata, ydata, p0)
 #	fit.jacobian: estimated Jacobian at solution
 lb = [1.1, -0.5]
 ub = [1.9, Inf]
-p0_bounds = [1.2, 1.2] # we have to start inside the bounds 
+p0_bounds = [1.2, 1.2] # we have to start inside the bounds
 # Optional upper and/or lower bounds on the free parameters can be passed as an argument.
 # Bounded and unbouded variables can be mixed by setting `-Inf` if no lower bounds
 # is to be enforced for that variable and similarly for `+Inf`
@@ -74,24 +74,24 @@ There's nothing inherently different if there are more than one variable enterin
 Evaluating the Jacobian and using automatic differentiation
 -------------------------
 The default is to calculate the Jacobian using a central finite differences scheme if no Jacobian function is provided. The defaul is to use central differences because it can be more accurate than forward finite differences, but at the expense of computational cost. It is possible to switch to forward finite differences, like MINPACK uses for example, by specifying `autodiff=:finiteforward`:
-```
+```julia
 fit = curve_fit(model, xdata, ydata, p0; autodiff=:finiteforward)
 ```
 It is also possible to use forward mode automatic differentiation as implemented in ForwardDiff.jl by using the `autodiff=:forwarddiff` keyword.
-```
+```julia
 fit = curve_fit(model, xdata, ydata, p0; autodiff=:forwarddiff)
 ```
 Here, you have to be careful not to manually restrict any types in your code to, say, `Float64`, because ForwardDiff.jl works by passing a special number type through your functions, to auto*magically* calculate the value and gradient with one evaluation.
 
-Inplace model and jacobian 
+Inplace model and jacobian
 -------------------------
 It is possible to either use an inplace model, or an inplace model *and* an inplace jacobian. It might be pertinent to use this feature when `curve_fit` is slow, or consumes a lot of memory
-```
+```julia
 model_inplace(F, x, p) = (@. F = p[1] * exp(-x * p[2]))
 
 function jacobian_inplace(J::Array{Float64,2},x,p)
         @. J[:,1] = exp(-x*p[2])     
-        @. @views J[:,2] = -x*p[1]*J[:,1] 
+        @. @views J[:,2] = -x*p[1]*J[:,1]
     end
 fit = curve_fit(model_inplace, jacobian_inplace, xdata, ydata, p0; inplace = true)
 ```
@@ -99,14 +99,14 @@ fit = curve_fit(model_inplace, jacobian_inplace, xdata, ydata, p0; inplace = tru
 Geodesic acceleration
 ---------------------
 This package implements optional geodesic acceleration, as outlined by [this paper](https://arxiv.org/pdf/1010.1449.pdf). To enable it, one needs to specify the function computing the *[directional second derivative](https://math.stackexchange.com/questions/2342410/why-is-mathbfdt-h-mathbfd-the-second-directional-derivative)* of the function that is fitted, as the `avv!` parameter. It is also preferable to set `lambda` and `min_step_quality`to `0`:
-```
+```julia
 curve_fit(model, xdata, ydata, p0; avv! = Avv!,lambda=0, min_step_quality = 0)
 ```
 `Avv!` must have the following form:
-- `p` is the array of parameters
-- `v`is the direction in which the direction is taken
-- `dir_deriv` is the output vector (the function is necessarily inplace)
-```
+* `p` is the array of parameters
+* `v`is the direction in which the direction is taken
+* `dir_deriv` is the output vector (the function is necessarily inplace)
+```julia
 function Avv!(dir_deriv,p,v)
         v1 = v[1]
         v2 = v[2]
@@ -117,20 +117,20 @@ function Avv!(dir_deriv,p,v)
             #h21 = h12
             h22 = (xdata[i]^2 * p[1] * exp(-xdata[i] * p[2]))
 
-            # manually compute v'Hv. This whole process might seem cumbersome, but 
-            # allocating temporary matrices quickly becomes REALLY expensive and might even 
+            # manually compute v'Hv. This whole process might seem cumbersome, but
+            # allocating temporary matrices quickly becomes REALLY expensive and might even
             # render the use of geodesic acceleration terribly inefficient  
             dir_deriv[i] = h11*v1^2 + 2*h12*v1*v2 + h22*v2^2
 
         end
-end 
+end
 ```
 Typically, if the model to fit outputs `[y_1(x),y_2(x),...,y_m(x)]`, and that the input data is `xdata` then `Avv!`should output an array of size `m`, where each element is `v'*H_i(xdata,p)*v`, where `H_i`is the Hessian matrix of the output `y_i`with respect to the parameter vector `p`.
 
 Depending on the size of the dataset, the complexity of the model and the desired tolerance in the fit result, it may be worthwhile to use automatic differentiation (e.g. via `Zygote.jl` or `ForwardDiff.jl`) to determine the directional derivative. Although this is potentially less efficient than calculating the directional derivative manually, this additional information will generally lead to more accurate results.
 
 An example of such an implementation is given by:
-```
+```julia
 using LinearAlgebra, Zygote
 
 function Avv!(dir_deriv,p,v)
