@@ -36,13 +36,13 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
     lambda = T(10), tau=T(Inf), lambda_increase::Real = 10.0, lambda_decrease::Real = 0.1,
     min_step_quality::Real = 1e-3, good_step_quality::Real = 0.75,
     show_trace::Bool = false, lower::Vector{T} = Array{T}(undef, 0), upper::Vector{T} = Array{T}(undef, 0), avv!::Union{Function,Nothing,Avv} = nothing
-    ) where T
+    ) where T<:Real
 
     # First evaluation
     value_jacobian!!(df, initial_x)
-    
+
     if isfinite(tau)
-        lambda = tau*maximum(jacobian(df)'*jacobian(df))
+        lambda = tau*maximum(real, jacobian(df)'*jacobian(df))
     end
 
 
@@ -98,51 +98,32 @@ function levenberg_marquardt(df::OnceDifferentiable, initial_x::AbstractVector{T
         # jacobian! will check if x is new or not, so it is only actually
         # evaluated if x was updated last iteration.
         jacobian!(df, x) # has alias J
-
-        # we want to solve:
+        # Use QR with column pivoting to solve the regularized least squares problem
         #    argmin 0.5*||J(x)*delta_x + f(x)||^2 + lambda*||diagm(J'*J)*delta_x||^2
-        # Solving for the minimum gives:
-        #    (J'*J + lambda*diagm(DtD)) * delta_x == -J' * f(x), where DtD = sum(abs2, J,1)
-        # Where we have used the equivalence: diagm(J'*J) = diagm(sum(abs2, J,1))
-        # It is additionally useful to bound the elements of DtD below to help
-        # prevent "parameter evaporation".
-
-        DtD = vec(sum(abs2, J, dims=1))
-        for i in 1:length(DtD)
-            if DtD[i] <= MIN_DIAGONAL
-                DtD[i] = MIN_DIAGONAL
-            end
+        Q,R,p = qr(J, Val(true))
+        rhs = -Matrix(Q)'*value(df)
+        if eltype(J) <: Real
+            RR = vcat(R, lambda*I)
+            rhs = vcat(rhs, zeros(T, n))
+        else
+            RR = vcat(real.(R), imag.(R), lambda*I) # nonlinear parameters are real
+            rhs = vcat(real.(rhs), imag.(rhs), zeros(T, n))
         end
+        v[p] = (RR\rhs)
 
-        # delta_x = ( J'*J + lambda * Diagonal(DtD) ) \ ( -J'*value(df) )
-        mul!(JJ, transpose(J), J)
-        @simd for i in 1:n
-            @inbounds JJ[i, i] += lambda * DtD[i]
-        end
-        #n_buffer is delta C, JJ is g compared to Mark's code
-        mul!(n_buffer, transpose(J), value(df))
-        rmul!(n_buffer, -1)
-
-        v .= JJ \ n_buffer
-
-
-        if avv! != nothing
+        if avv! != nothing && isreal(J)  # Geodesic acceleration for complex Jacobian needs to be verified for correctness. It might work as is.
             #GEODESIC ACCELERATION PART
             avv!(dir_deriv, x, v)
-            mul!(a, transpose(J), dir_deriv)
-            rmul!(a, -1) #we multiply by -1 before the decomposition/division
-            LAPACK.potrf!('U', JJ) #in place cholesky decomposition
-            LAPACK.potrs!('U', JJ, a) #divides a by JJ, taking into account the fact that JJ is now the `U` cholesky decoposition of what it was before
+            mul!(a, J', dir_deriv)
+            rmul!(a, -1)
+            a = (R\(R'\a[p]))
+            a[p] = a
             rmul!(a, 0.5)
             delta_x .= v .+ a
             #end of the GEODESIC ACCELERATION PART
         else
             delta_x = v
         end
-
-
-
-
 
         # apply box constraints
         if !isempty(lower)
