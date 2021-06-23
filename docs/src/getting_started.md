@@ -7,7 +7,7 @@ First, import the package.
 julia> using LsqFit
 ```
 
-Define a two-parameter exponential decay model, where ``t`` is a one-element independent variable, ``p_1`` and ``p_2`` are parameters.
+Define a two-parameter exponential decay model, where ``t`` is a one-element independent variable, ``p_1`` and ``p_2`` are __float__ parameters.
 
 The model function is:
 
