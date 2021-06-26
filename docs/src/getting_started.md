@@ -55,10 +55,10 @@ julia> cov = estimate_covar(fit)
  0.000174633  0.00258261
 ```
 
-`standard_error(fit)` returns the standard error of each parameter.
+`stderror(fit)` returns the standard error of each parameter.
 
 ```Julia
-julia> se = standard_error(fit)
+julia> se = stderror(fit)
 2-element Array{Float64,1}:
  0.0107956
  0.0508193

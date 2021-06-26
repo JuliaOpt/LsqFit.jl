@@ -1,7 +1,6 @@
 module LsqFit
 
     export curve_fit,
-           standard_error,
            margin_error,
            confidence_interval,
            estimate_covar,

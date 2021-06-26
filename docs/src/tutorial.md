@@ -195,10 +195,10 @@ julia> cov = estimate_covar(fit)
  0.000174633  0.00258261
 ```
 
-The standard error is then the square root of each diagonal elements of the covariance matrix. `standard_error()` returns the standard error of each parameter:
+The standard error is then the square root of each diagonal elements of the covariance matrix. `stderror()` returns the standard error of each parameter:
 
 ```Julia
-julia> se = standard_error(fit)
+julia> se = stderror(fit)
 2-element Array{Float64,1}:
  0.0114802
  0.0520416
