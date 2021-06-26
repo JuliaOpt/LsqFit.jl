@@ -1,7 +1,7 @@
 LsqFit.jl
 ===========
 
-The LsqFit package is a small library that provides basic least-squares fitting in pure Julia under an MIT license. The basic functionality was originaly in [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), before being separated into this library.  At this time, `LsqFit` only utilizes the Levenberg-Marquardt algorithm for non-linear fitting.
+The LsqFit package is a small library that provides basic least-squares fitting in pure Julia under an MIT license. The basic functionality was originally in [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl), before being separated into this library.  At this time, `LsqFit` only utilizes the Levenberg-Marquardt algorithm for non-linear fitting.
 
 [![Build Status](https://travis-ci.org/JuliaNLSolvers/LsqFit.jl.svg)](https://travis-ci.org/JuliaNLSolvers/LsqFit.jl)
 [![latest](https://img.shields.io/badge/docs-latest-blue.svg)](https://julianlsolvers.github.io/LsqFit.jl/latest/)
@@ -9,7 +9,7 @@ The LsqFit package is a small library that provides basic least-squares fitting 
 Basic Usage
 -----------
 
-There are top-level methods `curve_fit()` and `estimate_errors()` that are useful for fitting data to non-linear models. See the following example. Let's first define the model function:
+There are top-level methods `curve_fit()` and `margin_error()` that are useful for fitting data to non-linear models. See the following example. Let's first define the model function:
 ```julia
 using LsqFit
 
@@ -41,7 +41,7 @@ fit = curve_fit(model, xdata, ydata, p0)
 #	fit.jacobian: estimated Jacobian at solution
 lb = [1.1, -0.5]
 ub = [1.9, Inf]
-p0_bounds = [1.2, 1.2] # we have to start inside the bounds 
+p0_bounds = [1.2, 1.2] # we have to start inside the bounds
 # Optional upper and/or lower bounds on the free parameters can be passed as an argument.
 # Bounded and unbouded variables can be mixed by setting `-Inf` if no lower bounds
 # is to be enforced for that variable and similarly for `+Inf`
@@ -73,7 +73,7 @@ There's nothing inherently different if there are more than one variable enterin
 ```
 Evaluating the Jacobian and using automatic differentiation
 -------------------------
-The default is to calculate the Jacobian using a central finite differences scheme if no Jacobian function is provided. The defaul is to use central differences because it can be more accurate than forward finite differences, but at the expense of computational cost. It is possible to switch to forward finite differences, like MINPACK uses for example, by specifying `autodiff=:finiteforward`:
+The default is to calculate the Jacobian using a central finite differences scheme if no Jacobian function is provided. The default is to use central differences because it can be more accurate than forward finite differences, but at the expense of computational cost. It is possible to switch to forward finite differences, like MINPACK uses for example, by specifying `autodiff=:finiteforward`:
 ```
 fit = curve_fit(model, xdata, ydata, p0; autodiff=:finiteforward)
 ```
@@ -83,15 +83,15 @@ fit = curve_fit(model, xdata, ydata, p0; autodiff=:forwarddiff)
 ```
 Here, you have to be careful not to manually restrict any types in your code to, say, `Float64`, because ForwardDiff.jl works by passing a special number type through your functions, to auto*magically* calculate the value and gradient with one evaluation.
 
-Inplace model and jacobian 
+In-place model and Jacobian
 -------------------------
-It is possible to either use an inplace model, or an inplace model *and* an inplace jacobian. It might be pertinent to use this feature when `curve_fit` is slow, or consumes a lot of memory
+It is possible to either use an in-place model, or an in-place model *and* an in-place Jacobian. It might be pertinent to use this feature when `curve_fit` is slow, or consumes a lot of memory.
 ```
 model_inplace(F, x, p) = (@. F = p[1] * exp(-x * p[2]))
 
 function jacobian_inplace(J::Array{Float64,2},x,p)
-        @. J[:,1] = exp(-x*p[2])     
-        @. @views J[:,2] = -x*p[1]*J[:,1] 
+        @. J[:,1] = exp(-x*p[2])
+        @. @views J[:,2] = -x*p[1]*J[:,1]
     end
 fit = curve_fit(model_inplace, jacobian_inplace, xdata, ydata, p0; inplace = true)
 ```
@@ -105,7 +105,7 @@ curve_fit(model, xdata, ydata, p0; avv! = Avv!,lambda=0, min_step_quality = 0)
 `Avv!` must have the following form:
 - `p` is the array of parameters
 - `v`is the direction in which the direction is taken
-- `dir_deriv` is the output vector (the function is necessarily inplace)
+- `dir_deriv` is the output vector (the function is necessarily in-place)
 ```
 function Avv!(dir_deriv,p,v)
         v1 = v[1]
@@ -117,13 +117,13 @@ function Avv!(dir_deriv,p,v)
             #h21 = h12
             h22 = (xdata[i]^2 * p[1] * exp(-xdata[i] * p[2]))
 
-            # manually compute v'Hv. This whole process might seem cumbersome, but 
-            # allocating temporary matrices quickly becomes REALLY expensive and might even 
-            # render the use of geodesic acceleration terribly inefficient  
+            # manually compute v'Hv. This whole process might seem cumbersome, but
+            # allocating temporary matrices quickly becomes REALLY expensive and might even
+            # render the use of geodesic acceleration terribly inefficient
             dir_deriv[i] = h11*v1^2 + 2*h12*v1*v2 + h22*v2^2
 
         end
-end 
+end
 ```
 Typically, if the model to fit outputs `[y_1(x),y_2(x),...,y_m(x)]`, and that the input data is `xdata` then `Avv!`should output an array of size `m`, where each element is `v'*H_i(xdata,p)*v`, where `H_i`is the Hessian matrix of the output `y_i`with respect to the parameter vector `p`.
 
@@ -165,9 +165,9 @@ This performs a fit using a non-linear iteration to minimize the (weighted) resi
 * `atol`: absolute tolerance for negativity check
 * `rtol`: relative tolerance for negativity check
 
-This returns the error or uncertainty of each parameter fit to the model and already scaled by the associated degrees of freedom.  Please note, this is a LOCAL quantity calculated from the jacobian of the model evaluated at the best fit point and NOT the result of a parameter exploration.
+This returns the error or uncertainty of each parameter fit to the model and already scaled by the associated degrees of freedom.  Please note, this is a LOCAL quantity calculated from the Jacobian of the model evaluated at the best fit point and NOT the result of a parameter exploration.
 
-If no weights are provided for the fits, the variance is estimated from the mean squared error of the fits. If weights are provided, the weights are assumed to be the inverse of the variances or of the covariance matrix, and errors are estimated based on these and the jacobian, assuming a linearization of the model around the minimum squared error point.
+If no weights are provided for the fits, the variance is estimated from the mean squared error of the fits. If weights are provided, the weights are assumed to be the inverse of the variances or of the covariance matrix, and errors are estimated based on these and the Jacobian, assuming a linearization of the model around the minimum squared error point.
 
 `margin_of_error = margin_error(fit, alpha=0.05; atol, rtol)`:
 
@@ -192,6 +192,6 @@ This returns confidence interval of each parameter at `alpha` significance level
 `covar = estimate_covar(fit)`:
 
 * `fit`: result of curve_fit (a `LsqFitResult` type)
-* `covar`: parameter covariance matrix calculated from the jacobian of the model at the fit point, using the weights (if specified) as the inverse covariance of observations
+* `covar`: parameter covariance matrix calculated from the Jacobian of the model at the fit point, using the weights (if specified) as the inverse covariance of observations
 
-This returns the parameter covariance matrix evaluted at the best fit point.
+This returns the parameter covariance matrix evaluated at the best fit point.
