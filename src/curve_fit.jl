@@ -105,7 +105,7 @@ fit = curve_fit(model, xdata, ydata, p0)
 """
 function curve_fit end
 
-function curve_fit(model, xdata::AbstractArray, ydata::AbstractArray, p0::AbstractArray; inplace = false, kwargs...)
+function curve_fit(model::Function, xdata::AbstractArray, ydata::AbstractArray, p0::AbstractArray; inplace = false, kwargs...)
     check_data_health(xdata, ydata)
     # construct the cost function
     T = eltype(ydata)
@@ -119,7 +119,7 @@ function curve_fit(model, xdata::AbstractArray, ydata::AbstractArray, p0::Abstra
     end
 end
 
-function curve_fit(model, jacobian_model,
+function curve_fit(model::Function, jacobian_model::Function,
             xdata::AbstractArray, ydata::AbstractArray, p0::AbstractArray; inplace = false, kwargs...)
     check_data_health(xdata, ydata)
 
@@ -136,7 +136,7 @@ function curve_fit(model, jacobian_model,
     end
 end
 
-function curve_fit(model, xdata::AbstractArray, ydata::AbstractArray, wt::AbstractArray{T}, p0::AbstractArray; inplace = false, kwargs...) where T
+function curve_fit(model::Function, xdata::AbstractArray, ydata::AbstractArray, wt::AbstractVector{T}, p0::AbstractArray; inplace = false, kwargs...) where T
     check_data_health(xdata, ydata)
     # construct a weighted cost function, with a vector weight for each ydata
     # for example, this might be wt = 1/sigma where sigma is some error term
@@ -151,8 +151,8 @@ function curve_fit(model, xdata::AbstractArray, ydata::AbstractArray, wt::Abstra
     end
 end
 
-function curve_fit(model, jacobian_model,
-            xdata::AbstractArray, ydata::AbstractArray, wt::AbstractArray{T}, p0; inplace = false, kwargs...) where T
+function curve_fit(model::Function, jacobian_model::Function,
+            xdata::AbstractArray, ydata::AbstractArray, wt::AbstractVector{T}, p0; inplace = false, kwargs...) where T
     check_data_health(xdata, ydata)
     u = sqrt.(wt) # to be consistant with the matrix form
 
@@ -167,7 +167,7 @@ function curve_fit(model, jacobian_model,
     end
 end
 
-function curve_fit(model, xdata::AbstractArray, ydata::AbstractArray, wt::AbstractArray{T,2}, p0; kwargs...) where T
+function curve_fit(model::Function, xdata::AbstractArray, ydata::AbstractArray, wt::AbstractArray{T,2}, p0; kwargs...) where T
     check_data_health(xdata, ydata)
 
     # as before, construct a weighted cost function with where this
@@ -183,7 +183,7 @@ function curve_fit(model, xdata::AbstractArray, ydata::AbstractArray, wt::Abstra
     lmfit(f,p0,wt; kwargs...)
 end
 
-function curve_fit(model, jacobian_model,
+function curve_fit(model::Function, jacobian_model::Function,
             xdata::AbstractArray, ydata::AbstractArray, wt::AbstractArray{T,2}, p0; kwargs...) where T
     check_data_health(xdata, ydata)
 
